@@ -1,0 +1,9 @@
+FROM microsoft/aspnet:4.7.2-windowsservercore-1709
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+#Copy script file
+COPY /Scripts/build.ps1 /Windows/Temp
+
+#Run the build script
+#RUN /Windows/Temp/build.ps1
