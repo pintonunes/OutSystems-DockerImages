@@ -5,6 +5,7 @@ FROM microsoft/iis:windowsservercore-1803
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 ARG OSPSVersion=10.0.823.0
+ARG OSDEVersion=10.0.825.0
 
 ENV OSPrivateKey=""
 
@@ -35,7 +36,8 @@ RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; `
 
 RUN Import-Module Outsystems.SetupTools; `
     Install-OSPlatformPreReqs -MajorVersion \"$(([System.Version]$ENV:OSPSVersion).Major).$(([System.Version]$ENV:OSPSVersion).Minor)\" -InstallIISMgmtConsole:$false; `
-    Install-OSPlatformServer -Version \"$ENV:OSPSVersion\"; 
+    Install-OSPlatformServer -Version \"$ENV:OSPSVersion\"; `
+    Install-OSDevEnvironment -Version \"$ENV:OSDEVersion\"; 
 
 COPY start.ps1 /
 WORKDIR /

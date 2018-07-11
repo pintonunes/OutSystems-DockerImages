@@ -1,0 +1,92 @@
+# escape=`
+
+FROM microsoft/iis:windowsservercore-1803
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+ARG OSPSVersion=10.0.823.0
+ARG OSDEVersion=10.0.825.0
+
+# MS vars
+ENV MSSQLDownloadURL "https://go.microsoft.com/fwlink/?linkid=829176"
+
+# Outsystems vars
+ENV OSDBProvider="SQLExpress"
+ENV OSDBAuth="SQL"
+
+ENV OSDBServer="127.0.0.1"
+ENV OSDBCatalog="outsystems"
+ENV OSDBSAUser="sa"
+ENV OSDBSAPass="OSisThe#1"
+
+ENV OSDBSessionServer="127.0.0.1"
+ENV OSDBSessionCatalog="osSession"
+ENV OSDBSessionUser="OSSTATE"
+ENV OSDBSessionPass="OSisThe#1"
+
+ENV OSDBAdminUser="OSADMIN"
+ENV OSDBAdminPass="OSisThe#1"
+ENV OSDBRuntimeUser="OSRUNTIME"
+ENV OSDBRuntimePass="OSisThe#1"
+ENV OSDBLogUser="OSLOG"
+ENV OSDBLogPass="OSisThe#1"
+
+RUN Invoke-WebRequest -Uri $env:MSSQLDownloadURL -OutFile sqlexpress.exe ; `
+        Start-Process -Wait -FilePath .\sqlexpress.exe -ArgumentList /qs, /x:setup ; `
+        .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=SQLEXPRESS /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\System' /TCPENABLED=1 /NPENABLED=1 /SECURITYMODE=SQL /SAPWD=$ENV:OSDBSAPass /IACCEPTSQLSERVERLICENSETERMS ; `
+        Remove-Item -Recurse -Force sqlexpress.exe, setup
+
+RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; `
+    Install-Module Outsystems.SetupTools -Force;
+
+RUN Import-Module Outsystems.SetupTools; `
+    Install-OSPlatformPreReqs -MajorVersion \"$(([System.Version]$ENV:OSPSVersion).Major).$(([System.Version]$ENV:OSPSVersion).Minor)\" -InstallIISMgmtConsole:$false; `
+    Install-OSPlatformServer -Version \"$ENV:OSPSVersion\"; `
+    Install-OSDevEnvironment -Version \"$ENV:OSDEVersion\";
+
+RUN stop-service MSSQL`$SQLEXPRESS ; `
+    set-itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\supersocketnetlib\tcp\ipall' -name tcpdynamicports -value '' ; `
+    set-itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\supersocketnetlib\tcp\ipall' -name tcpport -value 1433 ; `
+    set-itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\' -name LoginMode -value 2 ; `
+    start-service MSSQL`$SQLEXPRESS ;
+
+RUN Import-Module Outsystems.SetupTools; `
+    Invoke-OSConfigurationTool -Verbose `
+        -DBProvider $ENV:OSDBProvider `
+        -DBAuth $ENV:OSDBAuth `
+        -DBServer $ENV:OSDBServer `
+        -DBCatalog $ENV:OSDBCatalog ` 
+        -DBSAUser $ENV:OSDBSAUser `
+        -DBSAPass $ENV:OSDBSAPass `
+        -DBSessionServer $ENV:OSDBSessionServer `
+        -DBSessionCatalog $ENV:OSDBSessionCatalog `
+        -DBSessionUser $ENV:OSDBSessionUser `
+        -DBSessionPass $ENV:OSDBSessionPass `
+        -DBAdminUser $ENV:OSDBAdminUser `
+        -DBAdminPass $ENV:OSDBAdminPass `
+        -DBRuntimeUser $ENV:OSDBRuntimeUser `
+        -DBRuntimePass $ENV:OSDBRuntimePass `
+        -DBLogUser $ENV:OSDBLogUser `
+        -DBLogPass $ENV:OSDBLogPass;
+
+RUN Import-Module Outsystems.SetupTools; `
+    Install-OSPlatformServiceCenter -Verbose;
+
+##RUN Import-Module Outsystems.SetupTools; `
+##    Install-OSPlatformSystemComponents;
+##
+##RUN Import-Module Outsystems.SetupTools; `
+##    Install-OSPlatformLicense;
+##
+##RUN Import-Module Outsystems.SetupTools; `
+##    Set-OSPlatformPerformanceTunning; `
+##    Set-OSPlatformSecuritySettings;
+##
+
+
+COPY start.ps1 /
+
+WORKDIR /
+
+ENTRYPOINT []
+CMD .\start.ps1 
