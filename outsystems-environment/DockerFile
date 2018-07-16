@@ -52,8 +52,7 @@ RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; `
 RUN Import-Module Outsystems.SetupTools; `
     Install-OSPlatformPreReqs -MajorVersion \"$(([System.Version]$ENV:OSPSVersion).Major).$(([System.Version]$ENV:OSPSVersion).Minor)\" -InstallIISMgmtConsole:$false; `
     Install-OSPlatformServer -Version \"$ENV:OSPSVersion\"; `
-    Install-OSDevEnvironment -Version \"$ENV:OSDEVersion\"; `
-    Remove-Item -Recurse -Force sqlexpress.exe, setup
+    Install-OSDevEnvironment -Version \"$ENV:OSDEVersion\"; 
 
 # Configure Outsystems
 RUN Import-Module Outsystems.SetupTools; `
@@ -93,7 +92,7 @@ COPY start.ps1 /
 
 WORKDIR /
 
-# Overwrite the entry point defined on the iis:windowsservercore-1803 image
+# Overwrite the entry point defined in the iis:windowsservercore-1803 image
 ENTRYPOINT []
 
 # Expose HTTP(s) and SQL ports to outside
