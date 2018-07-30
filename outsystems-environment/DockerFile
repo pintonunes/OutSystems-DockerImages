@@ -78,7 +78,7 @@ RUN Import-Module Outsystems.SetupTools; `
     Set-OSPlatformPerformanceTunning; `
     Set-OSPlatformSecuritySettings; `
     Stop-Service MSSQL`$SQLEXPRESS; `
-    Stop-OSServices; 
+    Stop-OSServerServices; 
 
 # Copy the container start script
 COPY start.ps1 /
