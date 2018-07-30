@@ -75,7 +75,7 @@ RUN Import-Module Outsystems.SetupTools; `
         -DBLogPass $ENV:OSDBLogPass; `
     Install-OSPlatformServiceCenter; `
     Publish-OSPlatformSystemComponents; `
-    Set-OSPlatformPerformanceTunning; `
+    Set-OSServerPerformanceTunning; `
     Set-OSServerSecuritySettings; `
     Stop-Service MSSQL`$SQLEXPRESS; `
     Stop-OSServerServices; 

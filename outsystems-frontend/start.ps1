@@ -108,7 +108,7 @@ Write-Output "Service Center available. Waiting more 15 seconds for full initial
 Start-Sleep -s 15
 
 # -- System tunning
-Set-OSPlatformPerformanceTunning
+Set-OSServerPerformanceTunning
 
 # -- Security settings
 Set-OSServerSecuritySettings
