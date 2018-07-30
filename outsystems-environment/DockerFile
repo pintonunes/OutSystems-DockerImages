@@ -51,7 +51,7 @@ RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; `
 RUN Import-Module Outsystems.SetupTools; `
     Install-OSServerPreReqs -MajorVersion \"$(([System.Version]$ENV:OSPSVersion).Major).$(([System.Version]$ENV:OSPSVersion).Minor)\" -InstallIISMgmtConsole:$false; `
     Install-OSPlatformServer -Version \"$ENV:OSPSVersion\"; `
-    Install-OSDevEnvironment -Version \"$ENV:OSDEVersion\"; 
+    Install-OSServiceStudio -Version \"$ENV:OSDEVersion\"; 
 
 # Configure Outsystems
 RUN Import-Module Outsystems.SetupTools; `
