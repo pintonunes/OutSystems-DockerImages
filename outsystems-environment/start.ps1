@@ -1,5 +1,13 @@
 # Import our module
-Import-Module Outsystems.SetupTools 
+Import-Module Outsystems.SetupTools
+
+# Start SQL Express
+Start-Service MSSQL`$SQLEXPRESS
+
+# TODO: Clean the Database.
+
+# Start Outsystems services
+Start-OSServerServices
 
 # Install the trial license
 Install-OSPlatformLicense
