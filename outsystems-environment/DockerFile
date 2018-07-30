@@ -41,8 +41,7 @@ RUN Invoke-WebRequest -Uri $env:MSSQLDownloadURL -OutFile sqlexpress.exe ; `
 RUN Stop-Service MSSQL`$SQLEXPRESS ; `
     Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\supersocketnetlib\tcp\ipall' -name tcpdynamicports -value '' ; `
     Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\supersocketnetlib\tcp\ipall' -name tcpport -value 1433 ; `
-    Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\' -name LoginMode -value 2 ; `
-    Start-Service MSSQL`$SQLEXPRESS ;
+    Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\' -name LoginMode -value 2;
 
 # Install the Outsystems setup module
 RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; `
@@ -50,12 +49,13 @@ RUN Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force; `
 
 # Install pre-reqs and the platform
 RUN Import-Module Outsystems.SetupTools; `
-    Install-OSPlatformPreReqs -MajorVersion \"$(([System.Version]$ENV:OSPSVersion).Major).$(([System.Version]$ENV:OSPSVersion).Minor)\" -InstallIISMgmtConsole:$false; `
+    Install-OSServerPreReqs -MajorVersion \"$(([System.Version]$ENV:OSPSVersion).Major).$(([System.Version]$ENV:OSPSVersion).Minor)\" -InstallIISMgmtConsole:$false; `
     Install-OSPlatformServer -Version \"$ENV:OSPSVersion\"; `
     Install-OSDevEnvironment -Version \"$ENV:OSDEVersion\"; 
 
 # Configure Outsystems
 RUN Import-Module Outsystems.SetupTools; `
+    Start-Service MSSQL`$SQLEXPRESS; `
     Invoke-OSConfigurationTool -Verbose `
         -DBProvider $ENV:OSDBProvider `
         -DBAuth $ENV:OSDBAuth `
@@ -72,20 +72,13 @@ RUN Import-Module Outsystems.SetupTools; `
         -DBRuntimeUser $ENV:OSDBRuntimeUser `
         -DBRuntimePass $ENV:OSDBRuntimePass `
         -DBLogUser $ENV:OSDBLogUser `
-        -DBLogPass $ENV:OSDBLogPass;
-
-# Install Service Center
-RUN Import-Module Outsystems.SetupTools; `
-    Install-OSPlatformServiceCenter -Verbose;
-
-# Install System components
-RUN Import-Module Outsystems.SetupTools; `
-    Install-OSPlatformSystemComponents;
-
-# Run optimization scripts
-RUN Import-Module Outsystems.SetupTools; `
+        -DBLogPass $ENV:OSDBLogPass; `
+    Install-OSPlatformServiceCenter; `
+    Install-OSPlatformSystemComponents; `
     Set-OSPlatformPerformanceTunning; `
-    Set-OSPlatformSecuritySettings;
+    Set-OSPlatformSecuritySettings; `
+    Stop-Service MSSQL`$SQLEXPRESS; `
+    Stop-OSServices; 
 
 # Copy the container start script
 COPY start.ps1 /
