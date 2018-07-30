@@ -76,7 +76,7 @@ RUN Import-Module Outsystems.SetupTools; `
     Install-OSPlatformServiceCenter; `
     Publish-OSPlatformSystemComponents; `
     Set-OSPlatformPerformanceTunning; `
-    Set-OSPlatformSecuritySettings; `
+    Set-OSServerSecuritySettings; `
     Stop-Service MSSQL`$SQLEXPRESS; `
     Stop-OSServerServices; 
 

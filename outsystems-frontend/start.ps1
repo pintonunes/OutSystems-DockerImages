@@ -111,7 +111,7 @@ Start-Sleep -s 15
 Set-OSPlatformPerformanceTunning
 
 # -- Security settings
-Set-OSPlatformSecuritySettings
+Set-OSServerSecuritySettings
 
 # TODO: Monitor OS services (empty for now)
 While($true){
