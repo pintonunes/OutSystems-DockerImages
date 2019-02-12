@@ -1,0 +1,2 @@
+Run on windows 10 with hyper-v isolation
+docker run -p 80:80 -p 443:443 -p 1433:1433 --memory="4G" --cpu-count 4 --cpu-percent 100 --hostname WIN2 pintonunes/outsystems-environment-with-sqlexp

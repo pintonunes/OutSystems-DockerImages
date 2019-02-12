@@ -1,0 +1,79 @@
+# escape=`
+
+FROM mcr.microsoft.com/dotnet/framework/aspnet:4.7.2-windowsservercore-ltsc2016
+
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+# SQL Server vars/envs
+ARG MSSQLDownloadURL="https://go.microsoft.com/fwlink/?linkid=829176"
+ENV OSDBSAUser="sa"
+ENV OSDBSAPass="OSisThe#1"
+ENV OSDBServer="127.0.0.1"
+
+# Install SQLExpress
+RUN Invoke-WebRequest -Uri $env:MSSQLDownloadURL -OutFile sqlexpress.exe ; `
+        Start-Process -Wait -FilePath .\sqlexpress.exe -ArgumentList /qs, /x:setup ; `
+        .\setup\setup.exe /q /ACTION=Install /INSTANCENAME=SQLEXPRESS /FEATURES=SQLEngine /UPDATEENABLED=0 /SQLSVCACCOUNT='NT AUTHORITY\System' /TCPENABLED=1 /NPENABLED=1 /SECURITYMODE=SQL /SAPWD=$ENV:OSDBSAPass /IACCEPTSQLSERVERLICENSETERMS ; `
+        Remove-Item -Recurse -Force sqlexpress.exe, setup -ErrorAction Stop
+
+# Configure SQLExpress
+RUN Stop-Service 'MSSQL$SQLEXPRESS' ; `
+    Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\supersocketnetlib\tcp\ipall' -Name tcpdynamicports -Value '' -ErrorAction Stop ; `
+    Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver\supersocketnetlib\tcp\ipall' -Name tcpport -Value 1433 -ErrorAction Stop ; `
+    Set-Itemproperty -path 'HKLM:\software\microsoft\microsoft sql server\mssql14.SQLEXPRESS\mssqlserver' -Name LoginMode -Value 2 -ErrorAction Stop
+
+# Install powershell modules
+RUN Install-PackageProvider -Name NuGet -MinimumVersion '2.8.5.201' -Force -ErrorAction Stop ; `
+    Install-Module Outsystems.SetupTools -RequiredVersion '2.4.2.0' -Force -ErrorAction Stop
+
+# Outsystems vars
+ARG OSPSVersion="11.0.211.0"
+ARG OSSSVersion="11.0.406.0"
+
+# Define a static RabbitMQ node name
+ENV RABBITMQ_NODENAME="outsystems@localhost"
+
+# Install pre-reqs and the platform
+RUN Install-OSServerPreReqs -MajorVersion (([System.Version]$env:OSPSVersion).Major.ToString() + '.' +([System.Version]$env:OSPSVersion).Minor.ToString()) -InstallIISMgmtConsole:$false -Verbose -ErrorAction Stop ; `
+    Install-OSServer -Version $env:OSPSVersion -Verbose -ErrorAction Stop ; `
+    Install-OSServiceStudio -Version $env:OSSSVersion -Verbose -ErrorAction Stop ; `
+    Copy-Item -Path C:\Windows\System32\config\systemprofile\.erlang.cookie -Destination C:\Users\ContainerAdministrator\ -Force -ErrorAction Stop ; `
+    Remove-Item -Recurse -Force $env:TEMP -ErrorAction Ignore ; `
+    Write-Output 'Platform installed successfully'
+
+# Configure the platform
+RUN Start-Service 'MSSQL$SQLEXPRESS' ; `
+    New-OSServerConfig -DatabaseProvider 'SQL' -Verbose ; `
+    Set-OSServerConfig -SettingSection 'PlatformDatabaseConfiguration' -Setting 'Server' -Value $env:OSDBServer -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'PlatformDatabaseConfiguration' -Setting 'AdminPassword' -Value $env:OSDBSAPass -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'SessionDatabaseConfiguration' -Setting 'Server' -Value $env:OSDBServer -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'SessionDatabaseConfiguration' -Setting 'SessionPassword' -Value $env:OSDBSAPass -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'LoggingDatabaseConfiguration' -Setting 'Server' -Value $env:OSDBServer -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'LoggingDatabaseConfiguration' -Setting 'AdminPassword' -Value $env:OSDBSAPass -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'LoggingDatabaseConfiguration' -Setting 'RuntimePassword' -Value $env:OSDBSAPass -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'ServiceConfiguration' -Setting 'CompilerServerHostname' -Value '127.0.0.1' -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'OtherConfigurations' -Setting 'DBTimeout' -Value '60' -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'CacheInvalidationConfiguration' -Setting 'ServiceHost' -Value '127.0.0.1' -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'CacheInvalidationConfiguration' -Setting 'ServicePassword' -Value $env:OSDBSAPass -Verbose -ErrorAction Stop ; `
+    Set-OSServerConfig -SettingSection 'NetworkConfiguration' -Setting 'OutgoingIPAddress' -Value '127.0.0.1' -Verbose -ErrorAction Stop  ; `
+    $OSDBSACred = New-Object System.Management.Automation.PSCredential ($env:OSDBSAUser, $(ConvertTo-SecureString $env:OSDBSAPass -AsPlainText -Force)) -ErrorAction Stop ; ` 
+    Set-OSServerConfig -Apply -PlatformDBCredential $OSDBSACred -SessionDBCredential $OSDBSACred -LogDBCredential $OSDBSACred -ConfigureCacheInvalidationService -Verbose -ErrorAction Stop ; `
+    Install-OSPlatformServiceCenter -Verbose -ErrorAction Stop ; `
+    Publish-OSPlatformSystemComponents -Verbose -ErrorAction Stop ; `
+    Stop-OSServerServices -Verbose -ErrorAction Stop ; `
+    Stop-Service 'MSSQL$SQLEXPRESS' -Verbose -ErrorAction Stop ; `
+    Stop-Service 'RabbitMQ' -Verbose -ErrorAction Stop 
+
+# Copy the container start script
+COPY start.ps1 /
+
+WORKDIR /
+
+# Overwrite the entry point defined in the iis image
+ENTRYPOINT []
+
+# Expose HTTP(s) and SQL ports to outside
+EXPOSE 80 443 1433
+
+# Start script
+CMD .\start.ps1 
