@@ -1,6 +1,6 @@
 # outsystems-controller-with-sqlexp
 
-This is a standaline outsystems environment with SQL Express 2017.
+This is a standalone outsystems environment with SQL Express 2017.
 
 You can start this container with the following command line on Windows 10 with hyper-v isolation:
 
